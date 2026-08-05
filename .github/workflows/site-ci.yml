@@ -54,6 +54,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
       - run: pnpm check
+      - run: pnpm test
       - run: pnpm build
       - name: Deploy to Cloudflare Pages
         if: inputs.deploy-project != '' && github.event_name == 'push'
