@@ -1,0 +1,41 @@
+# Reusable CI for all Ampolic site repos (called from each site's ci.yml):
+#   jobs:
+#     build:
+#       uses: ampolic/.github/.github/workflows/site-ci.yml@main
+# Hosted here (public) because public repos cannot call reusable workflows
+# that live in private repos like ampolic-core.
+#       with: { node-version: '22' }
+#       secrets: { packages-token: ${{ secrets.PACKAGES_TOKEN }} }
+name: Site CI
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: '22'
+        description: Node.js version
+    secrets:
+      packages-token:
+        required: true
+        description: Token with read:packages for @ampolic/* on GitHub Packages
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@ampolic'
+      - run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
+      - run: pnpm check
+      - run: pnpm build
