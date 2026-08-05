@@ -1,11 +1,16 @@
-# Reusable CI for all Ampolic site repos (called from each site's ci.yml):
+# Reusable CI/CD for all Ampolic site repos (called from each site's ci.yml):
 #   jobs:
 #     build:
 #       uses: ampolic/.github/.github/workflows/site-ci.yml@main
-# Hosted here (public) because public repos cannot call reusable workflows
-# that live in private repos like ampolic-core.
-#       with: { node-version: '22' }
-#       secrets: { packages-token: ${{ secrets.PACKAGES_TOKEN }} }
+#       with: { node-version: '22', deploy-project: 'site-<name>' }
+#       secrets:
+#         packages-token: ${{ secrets.PACKAGES_TOKEN }}
+#         cloudflare-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+#
+# Deploys are DIRECT UPLOAD via wrangler — Cloudflare's git-build pipeline is
+# deliberately unused (it can't auth against GitHub Packages reliably).
+# Branch mapping: main -> production deployment, anything else -> preview.
+# Omit deploy-project to run check+build only (e.g. the template repo, PRs).
 name: Site CI
 
 on:
@@ -15,10 +20,21 @@ on:
         type: string
         default: '22'
         description: Node.js version
+      deploy-project:
+        type: string
+        default: ''
+        description: Cloudflare Pages project name; empty = build only, no deploy
+      cloudflare-account-id:
+        type: string
+        default: 'b2002c68c35464a0c45886b3f45b84ff'
+        description: Cloudflare account ID (not a secret)
     secrets:
       packages-token:
         required: true
         description: Token with read:packages for @ampolic/* on GitHub Packages
+      cloudflare-token:
+        required: false
+        description: Cloudflare API token with Pages:Edit (required when deploy-project is set)
 
 jobs:
   build:
@@ -39,3 +55,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.packages-token }}
       - run: pnpm check
       - run: pnpm build
+      - name: Deploy to Cloudflare Pages
+        if: inputs.deploy-project != '' && github.event_name == 'push'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.cloudflare-token }}
+          accountId: ${{ inputs.cloudflare-account-id }}
+          command: pages deploy dist --project-name=${{ inputs.deploy-project }} --branch=${{ github.ref_name }} --commit-dirty=true
