@@ -10,7 +10,8 @@
 # Deploys are DIRECT UPLOAD via wrangler — Cloudflare's git-build pipeline is
 # deliberately unused (it can't auth against GitHub Packages reliably).
 # Branch mapping: main -> production deployment, anything else -> preview.
-# Omit deploy-project to run check+build only (e.g. the template repo, PRs).
+# Omit deploy-project for repositories that intentionally run build-only CI.
+# Pull-request events never deploy even when a caller supplies a project.
 name: Site CI
 
 on:
